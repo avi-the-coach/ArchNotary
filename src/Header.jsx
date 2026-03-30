@@ -8,9 +8,16 @@ import "./Header.css";
  *   onNewDocument {fn}       — start new document/session
  *   onSettings    {fn}       — open Agent Settings Panel
  */
-export function Header({ isRecording, onVoiceToggle, onNewDocument, onSettings }) {
+export function Header({ isRecording, onVoiceToggle, onNewDocument, onSettings, onBack }) {
   return (
     <header className="app-header">
+      {/* Back button */}
+      {onBack && (
+        <button className="btn-back" onClick={onBack} title="Sessions">
+          ←
+        </button>
+      )}
+
       {/* Logo + name */}
       <div className="header-brand">
         <div className="logo">
