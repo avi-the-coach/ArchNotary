@@ -1,0 +1,187 @@
+/* ─── Settings tabs nav ─── */
+.settings-tabs {
+  display: flex;
+  border-bottom: 1px solid var(--border-dark);
+  padding: 0 1rem;
+  flex-shrink: 0;
+}
+
+.settings-tab {
+  padding: 0.55rem 1rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+.settings-tab.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+
+/* ─── Tab content ─── */
+.tab-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.tab-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.tab-empty {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-align: center;
+  padding: 1rem 0;
+  opacity: 0.6;
+}
+
+/* ─── Provider rows ─── */
+.provider-row, .agent-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.75rem;
+  background: var(--bg-dark3);
+  border: 1px solid var(--border-dark);
+  border-radius: 7px;
+  gap: 0.5rem;
+}
+.agent-row.locked { opacity: 0.85; }
+
+.provider-info, .agent-left {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+}
+.provider-name, .agent-name {
+  font-size: 0.86rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+.provider-endpoint, .agent-sub {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.agent-icon { font-size: 1.1rem; }
+.agent-badge {
+  font-size: 0.65rem;
+  background: var(--border-dark);
+  color: var(--text-secondary);
+  border-radius: 3px;
+  padding: 0.1rem 0.35rem;
+  margin-left: 0.35rem;
+  vertical-align: middle;
+}
+
+.provider-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  flex-shrink: 0;
+}
+
+.test-status { font-size: 0.9rem; }
+
+/* ─── Buttons ─── */
+.btn-sm {
+  padding: 0.22rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--border-dark);
+  border-radius: 5px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+.btn-sm:hover { border-color: var(--accent); color: var(--text-primary); }
+.btn-sm.primary { border-color: var(--accent); color: var(--accent); }
+.btn-sm.primary:hover { background: var(--accent); color: #000; }
+.btn-sm.danger { border-color: var(--error); color: var(--error); }
+.btn-sm.danger:hover { background: var(--error); color: #fff; }
+
+.btn-tab-add {
+  padding: 0.2rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: transparent;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.btn-tab-add:hover { background: var(--accent); color: #000; }
+
+/* ─── Form ─── */
+.provider-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  background: var(--bg-dark3);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  padding: 0.9rem 1rem;
+}
+
+.form-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+}
+
+.provider-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.provider-form input,
+.provider-form select,
+.provider-form textarea {
+  padding: 0.4rem 0.65rem;
+  font-size: 0.84rem;
+  background: var(--bg-dark2);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-primary);
+  outline: none;
+  font-family: inherit;
+  transition: border-color 0.2s;
+}
+.provider-form input:focus,
+.provider-form select:focus,
+.provider-form textarea:focus { border-color: var(--accent); }
+.provider-form textarea { resize: vertical; min-height: 80px; }
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
