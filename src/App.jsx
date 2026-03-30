@@ -1,6 +1,26 @@
+import { useState, useRef, useCallback } from "react";
+import { Resizer } from "./Resizer";
 import "./App.css";
 
+const DOC_MIN_WIDTH = 280;
+const FEED_MIN_WIDTH = 280;
+const RESIZER_W = 6;
+
 function App() {
+  const [docWidth, setDocWidth] = useState(null); // null = flex default
+  const panelsRef = useRef(null);
+  const docRef = useRef(null);
+
+  // Receive absolute clientX; compute new doc width from container bounds
+  const handleResizerDrag = useCallback((clientX) => {
+    const container = panelsRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const maxDoc = rect.width - FEED_MIN_WIDTH - RESIZER_W;
+    const newWidth = Math.min(maxDoc, Math.max(DOC_MIN_WIDTH, clientX - rect.left));
+    setDocWidth(newWidth);
+  }, []);
+
   return (
     <div className="app">
       {/* Header */}
@@ -15,10 +35,14 @@ function App() {
       </header>
 
       {/* Two panels */}
-      <div className="panels">
+      <div className="panels" ref={panelsRef}>
 
         {/* Left: Document */}
-        <div className="panel-doc">
+        <div
+          className="panel-doc"
+          ref={docRef}
+          style={docWidth ? { width: docWidth, flex: "none" } : {}}
+        >
           <div className="panel-header">📄 Document</div>
           <div className="doc-body">
             <div className="doc-placeholder">
@@ -27,6 +51,9 @@ function App() {
             </div>
           </div>
         </div>
+
+        {/* Resizer */}
+        <Resizer onDrag={handleResizerDrag} />
 
         {/* Right: Feed */}
         <div className="panel-feed">
