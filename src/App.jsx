@@ -2,6 +2,7 @@ import { useState, useRef, useCallback } from "react";
 import { Header } from "./Header";
 import { Resizer } from "./Resizer";
 import { SessionsBrowser } from "./SessionsBrowser";
+import { DocumentToolbar } from "./DocumentToolbar";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import "./App.css";
 
@@ -18,6 +19,7 @@ function App() {
   const [sessions, setSessions] = useState([]);         // populated in 3.2
   const [docWidth, setDocWidth] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [isRtl, setIsRtl] = useState(true);         // RTL default (Hebrew)
   const [showSettings, setShowSettings] = useState(false);
   const panelsRef = useRef(null);
 
@@ -98,7 +100,12 @@ function App() {
           style={docWidth ? { width: docWidth, flex: "none" } : {}}
         >
           <div className="panel-header">📄 Document</div>
-          <div className="doc-body">
+          <DocumentToolbar
+            isRtl={isRtl}
+            onRtlToggle={() => setIsRtl((p) => !p)}
+            onDownload={(fmt) => console.log("[ArchNotary] Download:", fmt)}
+          />
+          <div className="doc-body" dir={isRtl ? "rtl" : "ltr"}>
             <div className="doc-placeholder">
               <span className="doc-icon">📄</span>
               <p>המסמך יוצג כאן</p>
