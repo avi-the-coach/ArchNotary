@@ -7,6 +7,7 @@ import { Feed } from "./Feed";
 import { FeedInput } from "./FeedInput";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import { useSpeechRecognition } from "./useSpeechRecognition";
+import { useSession } from "./useSession";
 import "./App.css";
 
 const DOC_MIN_WIDTH = 280;
@@ -34,6 +35,16 @@ function App() {
   const panelsRef = useRef(null);
   const interimIdRef = useRef(null); // id of current interim entry
 
+  const { init, createSession, appendFeedEntry, loadSession, loadAllSessions } = useSession();
+
+  // Init storage + load sessions on mount
+  useEffect(() => {
+    init().then(async () => {
+      const loaded = await loadAllSessions();
+      setSessions(loaded);
+    });
+  }, [init, loadAllSessions]);
+
   // ── Speech callbacks ──────────────────────────────────────
   const onInterim = useCallback((text) => {
     setFeedEntries((prev) => {
@@ -53,23 +64,19 @@ function App() {
   }, []);
 
   const onFinal = useCallback((text) => {
+    const entry = { id: newId(), type: "voice", text, timestamp: timestamp(), isInterim: false };
     setFeedEntries((prev) => {
       if (interimIdRef.current !== null) {
-        // Promote interim → final
         const updated = prev.map((e) =>
-          e.id === interimIdRef.current
-            ? { ...e, text, isInterim: false }
-            : e
+          e.id === interimIdRef.current ? { ...entry, id: e.id } : e
         );
         interimIdRef.current = null;
         return updated;
       }
-      return [
-        ...prev,
-        { id: newId(), type: "voice", text, timestamp: timestamp(), isInterim: false },
-      ];
+      return [...prev, entry];
     });
-  }, []);
+    appendFeedEntry(entry); // persist
+  }, [appendFeedEntry]);
 
   const onSttError = useCallback((err) => {
     console.warn("[ArchNotary] STT error:", err);
@@ -96,12 +103,11 @@ function App() {
 
   // ── Typed message ─────────────────────────────────────────
   const handleSend = useCallback((text) => {
-    setFeedEntries((prev) => [
-      ...prev,
-      { id: newId(), type: "typed", text, timestamp: timestamp() },
-    ]);
+    const entry = { id: newId(), type: "typed", text, timestamp: timestamp() };
+    setFeedEntries((prev) => [...prev, entry]);
+    appendFeedEntry(entry); // persist
     // Story 6.3: trigger stenographer immediately here
-  }, []);
+  }, [appendFeedEntry]);
 
   // ── Resizer ───────────────────────────────────────────────
   const handleResizerDrag = useCallback((clientX) => {
@@ -113,16 +119,18 @@ function App() {
   }, []);
 
   // ── Navigation ────────────────────────────────────────────
-  const handleNewSession = useCallback(() => {
+  const handleNewSession = useCallback(async () => {
+    await createSession();
     setFeedEntries([]);
     setView(VIEW_SESSION);
     setIsRecording(false);
-  }, []);
+  }, [createSession]);
 
-  const handleOpenSession = useCallback((id) => {
-    setFeedEntries([]); // Story 3.2: load from disk
+  const handleOpenSession = useCallback(async (id) => {
+    const { entries } = await loadSession(id);
+    setFeedEntries(entries);
     setView(VIEW_SESSION);
-  }, []);
+  }, [loadSession]);
 
   const handleDeleteSession = useCallback((id) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
