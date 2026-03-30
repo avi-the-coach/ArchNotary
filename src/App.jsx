@@ -8,6 +8,9 @@ import { FeedInput } from "./FeedInput";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 import { useSession } from "./useSession";
+import { useConfig } from "./useConfig";
+import { useStenographer } from "./useStenographer";
+import { useExpertAgent } from "./useExpertAgent";
 import { Document, applyPatch } from "./Document";
 import { downloadDocument } from "./exportDocument";
 import "./App.css";
@@ -39,14 +42,56 @@ function App() {
   const interimIdRef = useRef(null); // id of current interim entry
 
   const { init, createSession, appendFeedEntry, saveDocument, loadSession, loadAllSessions } = useSession();
+  const { config, loadConfig } = useConfig();
 
-  // Init storage + load sessions on mount
+  // Init storage + config on mount
   useEffect(() => {
     init().then(async () => {
+      await loadConfig();
       const loaded = await loadAllSessions();
       setSessions(loaded);
     });
-  }, [init, loadAllSessions]);
+  }, [init, loadConfig, loadAllSessions]);
+
+  // ── Feed entry helper (used by expert agent) ─────────────
+  const addFeedEntry = useCallback((partial) => {
+    const entry = { id: newId(), timestamp: timestamp(), ...partial };
+    setFeedEntries((prev) => [...prev, entry]);
+    if (!partial.isSystem) appendFeedEntry(entry);
+    return entry;
+  }, [appendFeedEntry]);
+
+  // ── Expert Agents ─────────────────────────────────────────
+  const expertAgentRef = useRef(null);
+  const expertAgent = useExpertAgent({
+    providers: config.providers,
+    agents: config.agents,
+    feedEntries,
+    docState,
+    onFeedEntry: addFeedEntry,
+  });
+  expertAgentRef.current = expertAgent;
+
+  // ── Stenographer ──────────────────────────────────────────
+  const stenoAgent = config.agents?.find((a) => a.id === "stenographer");
+  const stenoProvider = config.providers?.find((p) => p.id === stenoAgent?.providerId);
+
+  const { triggerNow } = useStenographer({
+    // triggerNowRef synced below after hook returns
+    provider: stenoProvider,
+    model: stenoAgent?.model,
+    isActive: isRecording,
+    feedEntries,
+    docState,
+    onPatch: applyDocPatch,
+    onTrigger: (trigger) => expertAgentRef.current?.invoke(trigger),
+    onSystemLine: (label, tooltip) => {
+      setFeedEntries((prev) => [
+        ...prev,
+        { id: newId(), isSystem: true, text: label, tooltip },
+      ]);
+    },
+  });
 
   // ── Speech callbacks ──────────────────────────────────────
   const onInterim = useCallback((text) => {
@@ -105,11 +150,12 @@ function App() {
   }, [view, isRecording, stopStt]);
 
   // ── Typed message ─────────────────────────────────────────
+  const triggerNowRef = useRef(null); // avoid circular dep with useStenographer
   const handleSend = useCallback((text) => {
     const entry = { id: newId(), type: "typed", text, timestamp: timestamp() };
     setFeedEntries((prev) => [...prev, entry]);
     appendFeedEntry(entry); // persist
-    // Story 6.3: trigger stenographer immediately here
+    triggerNowRef.current?.(); // Story 6.3: immediate stenographer cycle
   }, [appendFeedEntry]);
 
   // ── Resizer ───────────────────────────────────────────────
@@ -149,10 +195,14 @@ function App() {
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
+  // Sync triggerNow ref after stenographer hook resolves
+  triggerNowRef.current = triggerNow;
+
   const handleNewDocument = useCallback(() => {
     stopStt();
     setIsRecording(false);
     setFeedEntries([]);
+    setDocState({ sections: {}, order: [] });
     setView(VIEW_HOME);
   }, [stopStt]);
 
