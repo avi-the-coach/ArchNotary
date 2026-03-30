@@ -1,0 +1,63 @@
+.settings-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 100;
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+}
+
+.settings-panel {
+  width: 420px;
+  height: 100vh;
+  background: var(--bg-dark2);
+  border-left: 1px solid var(--border-dark);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.4);
+  animation: slideIn 0.2s ease;
+}
+
+@keyframes slideIn {
+  from { transform: translateX(100%); }
+  to   { transform: translateX(0); }
+}
+
+.settings-header {
+  height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.2rem;
+  border-bottom: 1px solid var(--border-dark);
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.settings-close {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.settings-close:hover { color: var(--text-primary); }
+
+.settings-body {
+  flex: 1;
+  padding: 1.5rem 1.2rem;
+  overflow-y: auto;
+}
+
+.settings-placeholder {
+  color: var(--text-secondary);
+  font-size: 0.88rem;
+  text-align: center;
+  margin-top: 2rem;
+}

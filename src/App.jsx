@@ -1,5 +1,7 @@
 import { useState, useRef, useCallback } from "react";
+import { Header } from "./Header";
 import { Resizer } from "./Resizer";
+import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import "./App.css";
 
 const DOC_MIN_WIDTH = 280;
@@ -7,11 +9,11 @@ const FEED_MIN_WIDTH = 280;
 const RESIZER_W = 6;
 
 function App() {
-  const [docWidth, setDocWidth] = useState(null); // null = flex default
+  const [docWidth, setDocWidth] = useState(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
   const panelsRef = useRef(null);
-  const docRef = useRef(null);
 
-  // Receive absolute clientX; compute new doc width from container bounds
   const handleResizerDrag = useCallback((clientX) => {
     const container = panelsRef.current;
     if (!container) return;
@@ -21,18 +23,23 @@ function App() {
     setDocWidth(newWidth);
   }, []);
 
+  const handleVoiceToggle = useCallback(() => {
+    setIsRecording((prev) => !prev);
+  }, []);
+
+  const handleNewDocument = useCallback(() => {
+    // Story 3.2: session lifecycle — placeholder
+    console.log("[ArchNotary] New Document requested");
+  }, []);
+
   return (
     <div className="app">
-      {/* Header */}
-      <header className="app-header">
-        <div className="logo">🎙️</div>
-        <div>
-          <div className="app-name">The Notary</div>
-          <div className="app-sub">Remember what matters.</div>
-        </div>
-        <div className="header-spacer" />
-        <button className="start-btn">▶ Start Session</button>
-      </header>
+      <Header
+        isRecording={isRecording}
+        onVoiceToggle={handleVoiceToggle}
+        onNewDocument={handleNewDocument}
+        onSettings={() => setShowSettings(true)}
+      />
 
       {/* Two panels */}
       <div className="panels" ref={panelsRef}>
@@ -40,7 +47,6 @@ function App() {
         {/* Left: Document */}
         <div
           className="panel-doc"
-          ref={docRef}
           style={docWidth ? { width: docWidth, flex: "none" } : {}}
         >
           <div className="panel-header">📄 Document</div>
@@ -67,6 +73,11 @@ function App() {
         </div>
 
       </div>
+
+      {/* Agent Settings Panel */}
+      {showSettings && (
+        <AgentSettingsPanel onClose={() => setShowSettings(false)} />
+      )}
     </div>
   );
 }
