@@ -1,70 +1,141 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { Header } from "./Header";
 import { Resizer } from "./Resizer";
 import { SessionsBrowser } from "./SessionsBrowser";
 import { DocumentToolbar } from "./DocumentToolbar";
+import { Feed } from "./Feed";
+import { FeedInput } from "./FeedInput";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
+import { useSpeechRecognition } from "./useSpeechRecognition";
 import "./App.css";
 
 const DOC_MIN_WIDTH = 280;
 const FEED_MIN_WIDTH = 280;
 const RESIZER_W = 6;
 
-// Views
 const VIEW_HOME = "home";
 const VIEW_SESSION = "session";
 
+let entryId = 0;
+function newId() { return ++entryId; }
+
+function timestamp() {
+  return new Date().toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+}
+
 function App() {
-  const [view, setView] = useState(VIEW_HOME);          // home | session
-  const [sessions, setSessions] = useState([]);         // populated in 3.2
+  const [view, setView] = useState(VIEW_HOME);
+  const [sessions, setSessions] = useState([]);
+  const [feedEntries, setFeedEntries] = useState([]);
   const [docWidth, setDocWidth] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
-  const [isRtl, setIsRtl] = useState(true);         // RTL default (Hebrew)
+  const [isRtl, setIsRtl] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const panelsRef = useRef(null);
+  const interimIdRef = useRef(null); // id of current interim entry
 
-  // Resizer drag
+  // ── Speech callbacks ──────────────────────────────────────
+  const onInterim = useCallback((text) => {
+    setFeedEntries((prev) => {
+      if (interimIdRef.current !== null) {
+        // update existing interim entry
+        return prev.map((e) =>
+          e.id === interimIdRef.current ? { ...e, text } : e
+        );
+      }
+      const id = newId();
+      interimIdRef.current = id;
+      return [
+        ...prev,
+        { id, type: "voice", text, timestamp: timestamp(), isInterim: true },
+      ];
+    });
+  }, []);
+
+  const onFinal = useCallback((text) => {
+    setFeedEntries((prev) => {
+      if (interimIdRef.current !== null) {
+        // Promote interim → final
+        const updated = prev.map((e) =>
+          e.id === interimIdRef.current
+            ? { ...e, text, isInterim: false }
+            : e
+        );
+        interimIdRef.current = null;
+        return updated;
+      }
+      return [
+        ...prev,
+        { id: newId(), type: "voice", text, timestamp: timestamp(), isInterim: false },
+      ];
+    });
+  }, []);
+
+  const onSttError = useCallback((err) => {
+    console.warn("[ArchNotary] STT error:", err);
+  }, []);
+
+  const { start: startStt, stop: stopStt, isSupported: sttSupported } =
+    useSpeechRecognition({ onInterim, onFinal, onError: onSttError });
+
+  // ── Voice toggle ──────────────────────────────────────────
+  const handleVoiceToggle = useCallback(() => {
+    setIsRecording((prev) => {
+      if (prev) { stopStt(); return false; }
+      startStt(); return true;
+    });
+  }, [startStt, stopStt]);
+
+  // Stop STT when leaving session view
+  useEffect(() => {
+    if (view !== VIEW_SESSION && isRecording) {
+      stopStt();
+      setIsRecording(false);
+    }
+  }, [view, isRecording, stopStt]);
+
+  // ── Typed message ─────────────────────────────────────────
+  const handleSend = useCallback((text) => {
+    setFeedEntries((prev) => [
+      ...prev,
+      { id: newId(), type: "typed", text, timestamp: timestamp() },
+    ]);
+    // Story 6.3: trigger stenographer immediately here
+  }, []);
+
+  // ── Resizer ───────────────────────────────────────────────
   const handleResizerDrag = useCallback((clientX) => {
     const container = panelsRef.current;
     if (!container) return;
     const rect = container.getBoundingClientRect();
     const maxDoc = rect.width - FEED_MIN_WIDTH - RESIZER_W;
-    const newWidth = Math.min(maxDoc, Math.max(DOC_MIN_WIDTH, clientX - rect.left));
-    setDocWidth(newWidth);
+    setDocWidth(Math.min(maxDoc, Math.max(DOC_MIN_WIDTH, clientX - rect.left)));
   }, []);
 
-  // Start new session → go to session view
+  // ── Navigation ────────────────────────────────────────────
   const handleNewSession = useCallback(() => {
-    // Story 3.2: will create session folder + meta
-    console.log("[ArchNotary] New session started");
+    setFeedEntries([]);
     setView(VIEW_SESSION);
     setIsRecording(false);
   }, []);
 
-  // Open existing session
   const handleOpenSession = useCallback((id) => {
-    console.log("[ArchNotary] Opening session:", id);
+    setFeedEntries([]); // Story 3.2: load from disk
     setView(VIEW_SESSION);
   }, []);
 
-  // Delete session
   const handleDeleteSession = useCallback((id) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
   }, []);
 
-  // New Document from within session view
   const handleNewDocument = useCallback(() => {
-    // Story 3.2: save current session, create new
-    console.log("[ArchNotary] New Document from session");
+    stopStt();
+    setIsRecording(false);
+    setFeedEntries([]);
     setView(VIEW_HOME);
-  }, []);
+  }, [stopStt]);
 
-  // Back to home
-  const handleBackToHome = useCallback(() => {
-    setView(VIEW_HOME);
-  }, []);
-
-  // ── HOME VIEW ──────────────────────────────────────────────
+  // ── HOME VIEW ─────────────────────────────────────────────
   if (view === VIEW_HOME) {
     return (
       <div className="app">
@@ -81,20 +152,20 @@ function App() {
     );
   }
 
-  // ── SESSION VIEW ────────────────────────────────────────────
+  // ── SESSION VIEW ──────────────────────────────────────────
   return (
     <div className="app">
       <Header
         isRecording={isRecording}
-        onVoiceToggle={() => setIsRecording((p) => !p)}
+        onVoiceToggle={handleVoiceToggle}
         onNewDocument={handleNewDocument}
         onSettings={() => setShowSettings(true)}
-        onBack={handleBackToHome}
+        onBack={handleNewDocument}
       />
 
       <div className="panels" ref={panelsRef}>
 
-        {/* Left: Document */}
+        {/* Document panel */}
         <div
           className="panel-doc"
           style={docWidth ? { width: docWidth, flex: "none" } : {}}
@@ -115,15 +186,11 @@ function App() {
 
         <Resizer onDrag={handleResizerDrag} />
 
-        {/* Right: Feed */}
+        {/* Feed panel */}
         <div className="panel-feed">
           <div className="panel-header">💬 Feed</div>
-          <div className="feed-messages">
-            <div className="feed-empty">
-              <span className="feed-icon">🎤</span>
-              <p>הפיד יופיע כאן</p>
-            </div>
-          </div>
+          <Feed entries={feedEntries} />
+          <FeedInput onSend={handleSend} />
         </div>
 
       </div>
