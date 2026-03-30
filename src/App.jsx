@@ -8,6 +8,8 @@ import { FeedInput } from "./FeedInput";
 import { AgentSettingsPanel } from "./AgentSettingsPanel";
 import { useSpeechRecognition } from "./useSpeechRecognition";
 import { useSession } from "./useSession";
+import { Document, applyPatch } from "./Document";
+import { downloadDocument } from "./exportDocument";
 import "./App.css";
 
 const DOC_MIN_WIDTH = 280;
@@ -30,12 +32,13 @@ function App() {
   const [feedEntries, setFeedEntries] = useState([]);
   const [docWidth, setDocWidth] = useState(null);
   const [isRecording, setIsRecording] = useState(false);
+  const [docState, setDocState] = useState({ sections: {}, order: [] });
   const [isRtl, setIsRtl] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const panelsRef = useRef(null);
   const interimIdRef = useRef(null); // id of current interim entry
 
-  const { init, createSession, appendFeedEntry, loadSession, loadAllSessions } = useSession();
+  const { init, createSession, appendFeedEntry, saveDocument, loadSession, loadAllSessions } = useSession();
 
   // Init storage + load sessions on mount
   useEffect(() => {
@@ -127,10 +130,20 @@ function App() {
   }, [createSession]);
 
   const handleOpenSession = useCallback(async (id) => {
-    const { entries } = await loadSession(id);
+    const { entries, document } = await loadSession(id);
     setFeedEntries(entries);
+    setDocState(document ?? { sections: {}, order: [] });
     setView(VIEW_SESSION);
   }, [loadSession]);
+
+  // Exposed for Stenographer (Story 6.1) to apply patches
+  const applyDocPatch = useCallback((patch) => {
+    setDocState((prev) => {
+      const next = applyPatch(prev, patch);
+      saveDocument(next);
+      return next;
+    });
+  }, [saveDocument]);
 
   const handleDeleteSession = useCallback((id) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
@@ -182,14 +195,9 @@ function App() {
           <DocumentToolbar
             isRtl={isRtl}
             onRtlToggle={() => setIsRtl((p) => !p)}
-            onDownload={(fmt) => console.log("[ArchNotary] Download:", fmt)}
+            onDownload={(fmt) => downloadDocument(docState, fmt)}
           />
-          <div className="doc-body" dir={isRtl ? "rtl" : "ltr"}>
-            <div className="doc-placeholder">
-              <span className="doc-icon">📄</span>
-              <p>המסמך יוצג כאן</p>
-            </div>
-          </div>
+          <Document docState={docState} isRtl={isRtl} />
         </div>
 
         <Resizer onDrag={handleResizerDrag} />
