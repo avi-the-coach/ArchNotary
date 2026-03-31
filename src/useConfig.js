@@ -237,12 +237,38 @@ export function useConfig() {
   );
 
   // ── Load ──────────────────────────────────────────────────────
+
+  // Try to read API keys from environment (available when launched from Claude Code terminal).
+  // Only fills in keys that aren't already persisted — never overwrites user-set keys.
+  const applyEnvKeys = useCallback(async (providers) => {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      const envKeys = await invoke("get_env_api_keys"); // { anthropic: "sk-...", openai: "sk-...", ... }
+      if (!envKeys || !Object.keys(envKeys).length) return providers;
+
+      const updated = providers.map((p) => {
+        if (p.sdkOnly) return p; // SDK handled separately via check_claude_sdk
+        const envKey = envKeys[p.id];
+        if (envKey && !p.apiKey) {
+          console.log(`[Config] auto-populated key for ${p.id} from environment`);
+          return { ...p, apiKey: envKey };
+        }
+        return p;
+      });
+      return updated;
+    } catch {
+      return providers; // not in Tauri context — ignore
+    }
+  }, []);
+
   const loadConfig = useCallback(async () => {
     try {
       const raw = await readFile(CONFIG_PATH);
       if (raw) {
         const data = JSON.parse(raw);
-        const merged = mergeProviders(data.providers ?? {});
+        let merged = mergeProviders(data.providers ?? {});
+        // Auto-fill missing keys from environment (Claude Code terminal sets them)
+        merged = await applyEnvKeys(merged);
         const mergedAgents = DEFAULT_AGENTS.map((def) => ({
           ...def,
           ...(data.agents?.find((a) => a.id === def.id) ?? {}),
@@ -258,7 +284,7 @@ export function useConfig() {
       /* keep defaults */
     }
     return providersRef.current;
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [applyEnvKeys]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Check single provider ─────────────────────────────────────
   // Accepts: provider object (for immediate check after key change) OR id string

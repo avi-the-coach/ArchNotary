@@ -113,12 +113,38 @@ fn check_claude_sdk() -> bool {
         .unwrap_or(false)
 }
 
-/// Read ANTHROPIC_API_KEY from the process environment.
-/// Returns None if the variable is not set.
-/// Used to auto-configure Claude Code SDK provider without manual key entry.
+/// Read Anthropic API key from environment.
+/// Claude Code sets X_ANTHROPIC_API_KEY; some users set ANTHROPIC_API_KEY.
+/// Returns the first one found, or None.
 #[tauri::command]
 fn get_env_anthropic_key() -> Option<String> {
-    std::env::var("ANTHROPIC_API_KEY").ok()
+    std::env::var("X_ANTHROPIC_API_KEY").ok()
+        .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok())
+}
+
+/// Read API keys for all known providers from environment.
+/// Returns a JSON object with provider ids as keys and api keys as values.
+/// Used to auto-populate provider keys when running from Claude Code terminal.
+#[tauri::command]
+fn get_env_api_keys() -> std::collections::HashMap<String, String> {
+    let mut keys = std::collections::HashMap::new();
+
+    // Anthropic — Claude Code sets X_ANTHROPIC_API_KEY
+    if let Some(k) = std::env::var("X_ANTHROPIC_API_KEY").ok()
+        .or_else(|| std::env::var("ANTHROPIC_API_KEY").ok()) {
+        keys.insert("anthropic".to_string(), k.clone());
+        keys.insert("claude-sdk".to_string(), k);
+    }
+
+    if let Some(k) = std::env::var("OPENAI_API_KEY").ok() {
+        keys.insert("openai".to_string(), k);
+    }
+
+    if let Some(k) = std::env::var("GEMINI_API_KEY").ok() {
+        keys.insert("google".to_string(), k);
+    }
+
+    keys
 }
 
 // ── App entry ───────────────────────────────────────────────────
@@ -135,6 +161,7 @@ pub fn run() {
             init_storage,
             check_claude_sdk,
             get_env_anthropic_key,
+            get_env_api_keys,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
