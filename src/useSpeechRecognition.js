@@ -52,6 +52,10 @@ export function useSpeechRecognition({ onInterim, onFinal, onError, onStart } = 
     };
 
     recognition.onerror = (event) => {
+      if (event.error === "no-speech") {
+        // Normal timeout — let onend restart recognition silently
+        return;
+      }
       onError?.(event.error);
       activeRef.current = false;
     };
