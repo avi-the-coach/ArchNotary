@@ -4,14 +4,9 @@
  * Timer: fires every ~20s when voice is active AND there are unprocessed entries.
  * Typed message: triggerNow() fires immediately + resets timer.
  *
- * On each cycle:
- * 1. Collect new feed entries since lastProcessed
- * 2. Build prompt: new entries + current document
- * 3. Call LLM → parse JSON: { doc_patches, agent_triggers }
- * 4. Apply doc_patches via onPatch()
- * 5. Fire agent_triggers via onTrigger()
- * 6. Append [processed] system line to feed
- * 7. Update lastProcessed
+ * KEY DESIGN: feedEntries and docState are accessed via REFS (not closure deps).
+ * This prevents runCycle from changing on every new entry, which would
+ * continuously reset the 20s timer and prevent it from ever firing.
  */
 
 import { useRef, useCallback, useEffect } from "react";
@@ -53,20 +48,61 @@ function buildPrompt(newEntries, docState) {
   return `New feed entries:\n${feedText}\n\nCurrent document:\n${docText || "(empty)"}`;
 }
 
-export function useStenographer({ provider, model, isActive, feedEntries, docState, onPatch, onTrigger, onSystemLine }) {
-  const lastProcessedRef = useRef(0); // index into feedEntries processed so far
-  const timerRef = useRef(null);
-  const runningRef = useRef(false);
+export function useStenographer({
+  provider,
+  model,
+  isActive,
+  feedEntries,
+  docState,
+  onPatch,
+  onTrigger,
+  onSystemLine,
+}) {
+  const lastProcessedRef = useRef(0);
+  const timerRef         = useRef(null);
+  const runningRef       = useRef(false);
+
+  // ── Refs for latest values — avoids stale closures + prevents timer reset ──
+  // runCycle reads from these instead of closing over the prop values.
+  // This means feedEntries/docState are NOT deps of runCycle's useCallback,
+  // so the timer doesn't restart every time new entries arrive.
+  const feedEntriesRef = useRef(feedEntries);
+  const docStateRef    = useRef(docState);
+  feedEntriesRef.current = feedEntries;
+  docStateRef.current    = docState;
 
   const runCycle = useCallback(async () => {
-    if (runningRef.current || !provider || !model) return;
+    if (runningRef.current) return;
 
-    const newEntries = feedEntries.slice(lastProcessedRef.current).filter((e) => !e.isSystem && !e.isInterim);
-    if (newEntries.length === 0) return;
+    // ── Guard: provider not configured ────────────────────────
+    if (!provider || !model) {
+      console.log("[Steno] skipped — no provider/model:", { provider: provider?.id, model });
+      onSystemLine(
+        "✍️ waiting for provider — open ⚙️ Settings → Agents",
+        "Stenographer needs a Provider and Model configured"
+      );
+      return;
+    }
 
+    // ── Guard: nothing new to process ─────────────────────────
+    const allEntries = feedEntriesRef.current;
+    const newEntries = allEntries
+      .slice(lastProcessedRef.current)
+      .filter((e) => !e.isSystem && !e.isInterim);
+
+    if (newEntries.length === 0) {
+      console.log("[Steno] skipped — no new entries");
+      return;
+    }
+
+    // ── Run cycle ─────────────────────────────────────────────
     runningRef.current = true;
+    console.log(`[Steno] ▶ cycle start — ${newEntries.length} new entries, provider=${provider.id}, model=${model}`);
+
     try {
-      const userMsg = buildPrompt(newEntries, docState);
+      const userMsg = buildPrompt(newEntries, docStateRef.current);
+      console.log("[Steno] calling LLM...");
+
       const { content } = await llmCall({
         provider,
         model,
@@ -76,24 +112,50 @@ export function useStenographer({ provider, model, isActive, feedEntries, docSta
         ],
       });
 
+      console.log("[Steno] raw response:", content.slice(0, 300));
+
       let parsed;
-      try { parsed = JSON.parse(content); }
-      catch { parsed = { doc_patches: [], agent_triggers: [] }; }
+      try {
+        parsed = JSON.parse(content);
+      } catch (e) {
+        console.warn("[Steno] JSON parse failed:", e.message, "| content:", content.slice(0, 200));
+        parsed = { doc_patches: [], agent_triggers: [] };
+      }
 
-      (parsed.doc_patches ?? []).forEach((p) => onPatch(p));
-      (parsed.agent_triggers ?? []).forEach((t) => onTrigger(t));
+      const patches  = parsed.doc_patches    ?? [];
+      const triggers = parsed.agent_triggers ?? [];
 
-      lastProcessedRef.current = feedEntries.length;
-      onSystemLine("[processed]", null);
+      console.log(`[Steno] ✓ patches=${patches.length} triggers=${triggers.length}`);
+
+      patches.forEach((p)  => onPatch(p));
+      triggers.forEach((t) => onTrigger(t));
+
+      // Advance the processed index AFTER applying patches (use ref for latest length)
+      lastProcessedRef.current = feedEntriesRef.current.length;
+
+      // ── System line: summary ──────────────────────────────
+      if (patches.length > 0) {
+        const sections = patches.map((p) => p.sectionKey).join(", ");
+        onSystemLine(
+          `✍️ updated: ${sections}`,
+          JSON.stringify(parsed, null, 2)
+        );
+      } else if (triggers.length > 0) {
+        onSystemLine(`✍️ processed — triggered ${triggers.length} agent(s)`, JSON.stringify(triggers, null, 2));
+      } else {
+        onSystemLine("✍️ processed — no changes", null);
+      }
+
     } catch (err) {
-      console.error("[Stenographer] error:", err.message);
-      onSystemLine(`[error: ${err.message}]`, null);
+      console.error("[Stenographer] error:", err);
+      onSystemLine(`✍️ error: ${err.message}`, err.stack ?? err.message);
     } finally {
       runningRef.current = false;
     }
-  }, [provider, model, feedEntries, docState, onPatch, onTrigger, onSystemLine]);
+  // NOTE: feedEntries and docState intentionally NOT in deps — accessed via refs.
+  }, [provider, model, onPatch, onTrigger, onSystemLine]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Timer: runs every CYCLE_MS when isActive
+  // ── Timer: starts/stops with voice ────────────────────────────
   useEffect(() => {
     if (isActive) {
       timerRef.current = setInterval(runCycle, CYCLE_MS);
@@ -103,7 +165,7 @@ export function useStenographer({ provider, model, isActive, feedEntries, docSta
     return () => clearInterval(timerRef.current);
   }, [isActive, runCycle]);
 
-  // Immediate trigger (called by typed message handler)
+  // ── Immediate trigger (typed message or manual) ───────────────
   const triggerNow = useCallback(() => {
     clearInterval(timerRef.current);
     runCycle();

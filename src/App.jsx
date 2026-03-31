@@ -86,21 +86,28 @@ function App() {
   const stenoAgent = agents?.find((a) => a.id === "stenographer");
   const stenoProvider = providers?.find((p) => p.id === stenoAgent?.providerId);
 
+  // Stable callbacks — must NOT be recreated on every render,
+  // otherwise runCycle's deps change → timer resets on every entry.
+  const onStenoTrigger = useCallback(
+    (trigger) => expertAgentRef.current?.invoke(trigger),
+    [] // stable: uses ref
+  );
+  const onStenoSystemLine = useCallback((label, tooltip) => {
+    setFeedEntries((prev) => [
+      ...prev,
+      { id: newId(), isSystem: true, text: label, tooltip },
+    ]);
+  }, []);
+
   const { triggerNow } = useStenographer({
-    // triggerNowRef synced below after hook returns
     provider: stenoProvider,
     model: stenoAgent?.model,
     isActive: isRecording,
     feedEntries,
     docState,
     onPatch: applyDocPatch,
-    onTrigger: (trigger) => expertAgentRef.current?.invoke(trigger),
-    onSystemLine: (label, tooltip) => {
-      setFeedEntries((prev) => [
-        ...prev,
-        { id: newId(), isSystem: true, text: label, tooltip },
-      ]);
-    },
+    onTrigger: onStenoTrigger,
+    onSystemLine: onStenoSystemLine,
   });
 
   // ── Speech callbacks ──────────────────────────────────────

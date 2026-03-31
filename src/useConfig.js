@@ -137,24 +137,36 @@ async function performProviderCheck(provider) {
     minute: "2-digit",
   });
 
-  // ── Claude Code SDK: look for `claude` CLI ──────────────────────
+  // ── Claude Code SDK: detect CLI + read API key from environment ──
   if (provider.sdkOnly) {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
       const exists = await invoke("check_claude_sdk");
+      if (!exists) {
+        return { status: "error", statusMsg: "claude CLI not found in PATH", models: [], statusAt };
+      }
+      // Read ANTHROPIC_API_KEY from environment — Claude Code sets this
+      const envKey = await invoke("get_env_anthropic_key");
+      if (!envKey) {
+        return {
+          status: "error",
+          statusMsg: "claude CLI found but ANTHROPIC_API_KEY not set in environment",
+          models: [],
+          statusAt,
+        };
+      }
+      // Return endpoint + key so LLM calls work transparently via Anthropic API
+      // Note: apiKey is NOT persisted to disk (re-read from env on each startup)
       return {
-        status: exists ? "ok" : "error",
-        statusMsg: exists ? "" : "claude CLI not found in PATH",
-        models: exists ? CLAUDE_SDK_MODELS : [],
+        status: "ok",
+        statusMsg: "",
+        models: CLAUDE_SDK_MODELS,
         statusAt,
+        endpoint: "https://api.anthropic.com/v1",
+        apiKey: envKey,
       };
     } catch {
-      return {
-        status: "error",
-        statusMsg: "Tauri not available",
-        models: [],
-        statusAt,
-      };
+      return { status: "error", statusMsg: "Tauri not available", models: [], statusAt };
     }
   }
 

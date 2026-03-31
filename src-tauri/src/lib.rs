@@ -113,6 +113,14 @@ fn check_claude_sdk() -> bool {
         .unwrap_or(false)
 }
 
+/// Read ANTHROPIC_API_KEY from the process environment.
+/// Returns None if the variable is not set.
+/// Used to auto-configure Claude Code SDK provider without manual key entry.
+#[tauri::command]
+fn get_env_anthropic_key() -> Option<String> {
+    std::env::var("ANTHROPIC_API_KEY").ok()
+}
+
 // ── App entry ───────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -126,6 +134,7 @@ pub fn run() {
             list_sessions,
             init_storage,
             check_claude_sdk,
+            get_env_anthropic_key,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
