@@ -101,6 +101,18 @@ fn init_storage(app: tauri::AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Check whether the `claude` CLI is available in PATH.
+/// Used to detect Claude Code SDK availability.
+#[tauri::command]
+fn check_claude_sdk() -> bool {
+    let cmd = if cfg!(windows) { "where" } else { "which" };
+    std::process::Command::new(cmd)
+        .arg("claude")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 // ── App entry ───────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -113,6 +125,7 @@ pub fn run() {
             append_file,
             list_sessions,
             init_storage,
+            check_claude_sdk,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

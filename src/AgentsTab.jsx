@@ -1,3 +1,9 @@
+/**
+ * AgentsTab — 4 fixed agents.
+ * Model dropdown uses the provider's fetched models list (not hardcoded).
+ * Falls back to text input if no models fetched yet.
+ */
+
 import { useState } from "react";
 import "./SettingsTabs.css";
 
@@ -6,7 +12,11 @@ export function AgentsTab({ agents, providers, onUpdate }) {
 
   const getProviderStatus = (agent) => {
     if (!agent.providerId) return "⚠️";
-    return providers.find((p) => p.id === agent.providerId) ? "✅" : "⚠️";
+    const p = providers.find((p) => p.id === agent.providerId);
+    if (!p) return "⚠️";
+    if (p.status === "ok")    return "✅";
+    if (p.status === "error") return "❌";
+    return "⚠️";
   };
 
   const handleSave = async () => {
@@ -19,6 +29,38 @@ export function AgentsTab({ agents, providers, onUpdate }) {
     onUpdate({ ...agent, active: !agent.active });
   };
 
+  // Model selector: dropdown if provider has fetched models, else text input
+  const ModelField = ({ editing, providers, onChange }) => {
+    const prov   = providers.find((p) => p.id === editing.providerId);
+    const models = prov?.models ?? [];
+
+    if (models.length > 0) {
+      return (
+        <select
+          value={editing.model ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+        >
+          <option value="">— Select model —</option>
+          {models.map((m) => (
+            <option key={m} value={m}>{m}</option>
+          ))}
+        </select>
+      );
+    }
+
+    return (
+      <input
+        value={editing.model ?? ""}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={
+          editing.providerId
+            ? "Connect provider to load models…"
+            : "Select a provider first"
+        }
+      />
+    );
+  };
+
   return (
     <div className="tab-content">
       <div className="tab-section-header">
@@ -28,7 +70,6 @@ export function AgentsTab({ agents, providers, onUpdate }) {
       {agents.map((a) => (
         <div key={a.id} className={`agent-row ${a.locked ? "locked" : ""}`}>
           <div className="agent-left">
-            {/* Active toggle (not for stenographer) */}
             {!a.locked && (
               <input
                 type="checkbox"
@@ -44,7 +85,9 @@ export function AgentsTab({ agents, providers, onUpdate }) {
                 {a.locked && <span className="agent-badge">locked</span>}
               </div>
               <div className="agent-sub">
-                {getProviderStatus(a)} {providers.find((p) => p.id === a.providerId)?.name ?? "no provider"}
+                {getProviderStatus(a)}{" "}
+                {providers.find((p) => p.id === a.providerId)?.name ?? "no provider"}
+                {a.model ? ` · ${a.model}` : ""}
               </div>
             </div>
           </div>
@@ -61,30 +104,40 @@ export function AgentsTab({ agents, providers, onUpdate }) {
           <label>Provider
             <select
               value={editing.providerId ?? ""}
-              onChange={(e) => setEditing({ ...editing, providerId: e.target.value || null })}
+              onChange={(e) =>
+                setEditing({
+                  ...editing,
+                  providerId: e.target.value || null,
+                  model: "",      // reset model when provider changes
+                })
+              }
             >
               <option value="">— None —</option>
               {providers.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
+                <option key={p.id} value={p.id}>
+                  {p.icon} {p.name}
+                  {p.status === "ok" ? " ✅" : p.status === "error" ? " ❌" : ""}
+                </option>
               ))}
             </select>
           </label>
 
           <label>Model
-            <input
-              value={editing.model ?? ""}
-              onChange={(e) => setEditing({ ...editing, model: e.target.value })}
-              placeholder="e.g. gpt-4o, claude-3-5-sonnet"
+            <ModelField
+              editing={editing}
+              providers={providers}
+              onChange={(m) => setEditing({ ...editing, model: m })}
             />
           </label>
 
-          {/* Instructions only editable for non-locked agents */}
           {!editing.locked && (
             <label>Instructions
               <textarea
                 rows={5}
                 value={editing.instructions ?? ""}
-                onChange={(e) => setEditing({ ...editing, instructions: e.target.value })}
+                onChange={(e) =>
+                  setEditing({ ...editing, instructions: e.target.value })
+                }
               />
             </label>
           )}

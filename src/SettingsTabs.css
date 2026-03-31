@@ -61,15 +61,31 @@
   border-radius: 7px;
   gap: 0.5rem;
 }
+/* v2 provider rows: top-align to accommodate inline key form */
+.provider-row-v2 { align-items: flex-start; }
 .agent-row.locked { opacity: 0.85; }
 
 .provider-info, .agent-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
 }
+.provider-info-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.18rem;
+  min-width: 0;
+  flex: 1;
+}
+.provider-name-line {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+.provider-icon { font-size: 1rem; line-height: 1; }
 .provider-name, .agent-name {
   font-size: 0.86rem;
   font-weight: 600;
@@ -82,6 +98,58 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.provider-models-badge {
+  font-size: 0.65rem;
+  background: rgba(78, 205, 196, 0.12);
+  color: var(--accent);
+  border: 1px solid rgba(78, 205, 196, 0.28);
+  border-radius: 10px;
+  padding: 0.05rem 0.45rem;
+}
+.provider-checking { font-size: 0.85rem; }
+.provider-error {
+  font-size: 0.72rem;
+  color: var(--error, #f44336);
+  margin-top: 0.1rem;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* ─── Status dot ─── */
+.status-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  margin-top: 0.38rem;
+}
+.status-ok   { background: #4caf50; box-shadow: 0 0 5px #4caf5077; }
+.status-err  { background: #f44336; box-shadow: 0 0 5px #f4433677; }
+.status-none { background: var(--border-dark); }
+
+/* ─── Inline key edit ─── */
+.key-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.3rem;
+  flex-wrap: wrap;
+}
+.key-input {
+  padding: 0.3rem 0.55rem;
+  font-size: 0.8rem;
+  background: var(--bg-dark2);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  color: var(--text-primary);
+  outline: none;
+  min-width: 170px;
+  flex: 1;
+  font-family: monospace;
+}
+.key-input:focus { box-shadow: 0 0 0 2px rgba(78,205,196,0.18); }
+
 .agent-icon { font-size: 1.1rem; }
 .agent-badge {
   font-size: 0.65rem;
@@ -98,6 +166,7 @@
   align-items: center;
   gap: 0.35rem;
   flex-shrink: 0;
+  padding-top: 0.05rem;
 }
 
 .test-status { font-size: 0.9rem; }

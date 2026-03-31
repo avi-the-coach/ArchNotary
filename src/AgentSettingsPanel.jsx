@@ -8,12 +8,25 @@ const TABS = ["Providers", "Agents"];
 
 /**
  * AgentSettingsPanel — slide-in panel with Providers + Agents tabs.
+ * Has its own useConfig instance so changes are saved to disk.
  */
 export function AgentSettingsPanel({ onClose }) {
   const [activeTab, setActiveTab] = useState("Providers");
-  const { config, loaded, loadConfig, updateProvider, deleteProvider, updateAgent } = useConfig();
 
-  useEffect(() => { loadConfig(); }, [loadConfig]);
+  const {
+    providers,
+    agents,
+    loadConfig,
+    checkProvider,
+    checkAllProviders,
+    saveApiKey,
+    updateAgent,
+  } = useConfig();
+
+  // Load config + run initial checks when panel opens
+  useEffect(() => {
+    loadConfig().then((loaded) => checkAllProviders(loaded));
+  }, [loadConfig, checkAllProviders]);
 
   return (
     <div className="settings-overlay" onClick={onClose}>
@@ -37,18 +50,16 @@ export function AgentSettingsPanel({ onClose }) {
         </div>
 
         <div className="settings-body">
-          {!loaded ? (
-            <p className="settings-placeholder">Loading…</p>
-          ) : activeTab === "Providers" ? (
+          {activeTab === "Providers" ? (
             <ProvidersTab
-              providers={config.providers}
-              onUpdate={updateProvider}
-              onDelete={deleteProvider}
+              providers={providers}
+              onSaveKey={saveApiKey}
+              onCheck={checkProvider}
             />
           ) : (
             <AgentsTab
-              agents={config.agents}
-              providers={config.providers}
+              agents={agents}
+              providers={providers}
               onUpdate={updateAgent}
             />
           )}

@@ -42,16 +42,17 @@ function App() {
   const interimIdRef = useRef(null); // id of current interim entry
 
   const { init, createSession, appendFeedEntry, saveDocument, loadSession, loadAllSessions } = useSession();
-  const { config, loadConfig } = useConfig();
+  const { providers, agents, loadConfig, checkAllProviders } = useConfig();
 
-  // Init storage + config on mount
+  // Init storage + config on mount, then auto-check all providers
   useEffect(() => {
     init().then(async () => {
-      await loadConfig();
+      const loadedProviders = await loadConfig();
+      checkAllProviders(loadedProviders); // fire-and-forget: update dots async
       const loaded = await loadAllSessions();
       setSessions(loaded);
     });
-  }, [init, loadConfig, loadAllSessions]);
+  }, [init, loadConfig, checkAllProviders, loadAllSessions]);
 
   // ── Feed entry helper (used by expert agent) ─────────────
   const addFeedEntry = useCallback((partial) => {
@@ -64,8 +65,8 @@ function App() {
   // ── Expert Agents ─────────────────────────────────────────
   const expertAgentRef = useRef(null);
   const expertAgent = useExpertAgent({
-    providers: config.providers,
-    agents: config.agents,
+    providers,
+    agents,
     feedEntries,
     docState,
     onFeedEntry: addFeedEntry,
@@ -82,8 +83,8 @@ function App() {
     });
   }, [saveDocument]);
 
-  const stenoAgent = config.agents?.find((a) => a.id === "stenographer");
-  const stenoProvider = config.providers?.find((p) => p.id === stenoAgent?.providerId);
+  const stenoAgent = agents?.find((a) => a.id === "stenographer");
+  const stenoProvider = providers?.find((p) => p.id === stenoAgent?.providerId);
 
   const { triggerNow } = useStenographer({
     // triggerNowRef synced below after hook returns

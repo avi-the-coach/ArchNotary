@@ -1,90 +1,135 @@
+/**
+ * ProvidersTab — fixed list of 4 predefined providers.
+ *
+ * - No Add / Delete buttons — providers are hardcoded.
+ * - API providers: user enters only API key. Save → auto-check → status dot.
+ * - Claude SDK: auto-detected. Manual Recheck button.
+ * - Status dot: green (ok) / red (error) / gray (not configured).
+ * - Error message shown inline below provider name.
+ */
+
 import { useState } from "react";
 import "./SettingsTabs.css";
 
-const EMPTY_PROVIDER = { id: "", name: "", endpoint: "", apiKey: "", type: "openai" };
-
-function newId() {
-  return `provider_${Date.now()}`;
+function StatusDot({ status }) {
+  if (status === "ok")    return <span className="status-dot status-ok"  title="Connected" />;
+  if (status === "error") return <span className="status-dot status-err" title="Error" />;
+  return                         <span className="status-dot status-none" title="Not configured" />;
 }
 
-async function testConnection(provider) {
-  try {
-    const res = await fetch(`${provider.endpoint}/models`, {
-      headers: { Authorization: `Bearer ${provider.apiKey}` },
-    });
-    return res.ok;
-  } catch {
-    return false;
-  }
-}
+export function ProvidersTab({ providers, onSaveKey, onCheck }) {
+  const [editingId, setEditingId]   = useState(null);
+  const [keyDraft,  setKeyDraft]    = useState("");
+  const [checking,  setChecking]    = useState(null); // provider id being checked
 
-export function ProvidersTab({ providers, onUpdate, onDelete }) {
-  const [editing, setEditing] = useState(null); // null | provider object
-  const [testResult, setTestResult] = useState({}); // providerId → "ok"|"fail"|"testing"
-
-  const handleAdd = () => {
-    setEditing({ ...EMPTY_PROVIDER, id: newId() });
+  const handleEdit = (p) => {
+    setEditingId(p.id);
+    setKeyDraft(p.apiKey ?? "");
   };
 
-  const handleSave = async () => {
-    if (!editing) return;
-    await onUpdate(editing);
-    setEditing(null);
+  const handleCancel = () => {
+    setEditingId(null);
+    setKeyDraft("");
   };
 
-  const handleTest = async (provider) => {
-    setTestResult((p) => ({ ...p, [provider.id]: "testing" }));
-    const ok = await testConnection(provider);
-    setTestResult((p) => ({ ...p, [provider.id]: ok ? "ok" : "fail" }));
+  const handleSave = async (id) => {
+    setChecking(id);
+    await onSaveKey(id, keyDraft);
+    setEditingId(null);
+    setKeyDraft("");
+    setChecking(null);
+  };
+
+  const handleRecheck = async (id) => {
+    setChecking(id);
+    await onCheck(id);
+    setChecking(null);
   };
 
   return (
     <div className="tab-content">
       <div className="tab-section-header">
         <span>AI Providers</span>
-        <button className="btn-tab-add" onClick={handleAdd}>+ Add</button>
       </div>
 
-      {providers.length === 0 && !editing && (
-        <p className="tab-empty">No providers configured yet.</p>
-      )}
-
       {providers.map((p) => (
-        <div key={p.id} className="provider-row">
+        <div key={p.id} className="provider-row provider-row-v2">
+
+          {/* Left: status dot + info */}
           <div className="provider-info">
-            <span className="provider-name">{p.name}</span>
-            <span className="provider-endpoint">{p.endpoint}</span>
+            <StatusDot status={p.status} />
+            <div className="provider-info-text">
+              <div className="provider-name-line">
+                <span className="provider-icon">{p.icon}</span>
+                <span className="provider-name">{p.name}</span>
+                {p.status === "ok" && p.models.length > 0 && (
+                  <span className="provider-models-badge">
+                    {p.models.length} models
+                  </span>
+                )}
+                {checking === p.id && (
+                  <span className="provider-checking">⏳</span>
+                )}
+              </div>
+
+              {p.statusAt && (
+                <span className="provider-endpoint">
+                  Last checked {p.statusAt}
+                </span>
+              )}
+
+              {p.status === "error" && (
+                <div className="provider-error">{p.statusMsg}</div>
+              )}
+
+              {/* Inline API key form */}
+              {!p.sdkOnly && editingId === p.id && (
+                <div className="key-edit-row">
+                  <input
+                    type="password"
+                    className="key-input"
+                    value={keyDraft}
+                    onChange={(e) => setKeyDraft(e.target.value)}
+                    placeholder="Paste API key…"
+                    autoFocus
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleSave(p.id);
+                      if (e.key === "Escape") handleCancel();
+                    }}
+                  />
+                  <button className="btn-sm" onClick={handleCancel}>✕</button>
+                  <button
+                    className="btn-sm primary"
+                    onClick={() => handleSave(p.id)}
+                    disabled={checking === p.id}
+                  >
+                    Save &amp; Connect
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Right: action buttons */}
           <div className="provider-actions">
-            <span className={`test-status test-${testResult[p.id] ?? "idle"}`}>
-              {testResult[p.id] === "testing" ? "⏳" :
-               testResult[p.id] === "ok" ? "✅" :
-               testResult[p.id] === "fail" ? "❌" : ""}
-            </span>
-            <button className="btn-sm" onClick={() => handleTest(p)}>Test</button>
-            <button className="btn-sm" onClick={() => setEditing(p)}>Edit</button>
-            <button className="btn-sm danger" onClick={() => onDelete(p.id)}>✕</button>
+            {!p.sdkOnly && editingId !== p.id && (
+              <button className="btn-sm" onClick={() => handleEdit(p)}>
+                {p.apiKey ? "Edit Key" : "+ Add Key"}
+              </button>
+            )}
+            {(p.sdkOnly || (p.apiKey && editingId !== p.id)) && (
+              <button
+                className="btn-sm"
+                onClick={() => handleRecheck(p.id)}
+                disabled={checking === p.id}
+              >
+                Recheck
+              </button>
+            )}
           </div>
+
         </div>
       ))}
-
-      {editing && (
-        <div className="provider-form">
-          <label>Name
-            <input value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} placeholder="My Provider" />
-          </label>
-          <label>Endpoint
-            <input value={editing.endpoint} onChange={(e) => setEditing({ ...editing, endpoint: e.target.value })} placeholder="https://api.openai.com/v1" />
-          </label>
-          <label>API Key
-            <input type="password" value={editing.apiKey} onChange={(e) => setEditing({ ...editing, apiKey: e.target.value })} placeholder="sk-..." />
-          </label>
-          <div className="form-actions">
-            <button className="btn-sm" onClick={() => setEditing(null)}>Cancel</button>
-            <button className="btn-sm primary" onClick={handleSave}>Save</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
