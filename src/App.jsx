@@ -179,15 +179,16 @@ function App() {
       // Restore original Windows default recording device
       if (audioDeviceId && originalAudioDeviceRef.current) {
         invoke("set_default_recording_device", { deviceId: originalAudioDeviceRef.current })
-          .then(() => addSystemLine("🎤 מכשיר השמע שוחזר"))
-          .catch(() => addSystemLine("⚠️ לא הצלחנו לשחזר מכשיר שמע"));
+          .then((r) => addSystemLine(r === "ok" ? "🎤 מכשיר השמע שוחזר" : `⚠️ שחזור מכשיר נכשל: ${r}`))
+          .catch((e) => addSystemLine(`⚠️ לא הצלחנו לשחזר מכשיר שמע: ${e}`));
       }
     } else {
       // If custom device selected, set as Windows default so Web Speech API uses it
       if (audioDeviceId) {
         addSystemLine("🔄 מחליף מכשיר שמע...");
-        const ok = await invoke("set_default_recording_device", { deviceId: audioDeviceId }).catch(() => false);
-        addSystemLine(ok ? "✅ מכשיר שמע הוחלף" : "⚠️ החלפת מכשיר נכשלה — משתמש בברירת מחדל");
+        const result = await invoke("set_default_recording_device", { deviceId: audioDeviceId }).catch((e) => `invoke-error: ${e}`);
+        const ok = result === "ok";
+        addSystemLine(ok ? "✅ מכשיר שמע הוחלף" : `⚠️ החלפת מכשיר נכשלה: ${result}`);
       }
       startStt();
       setIsRecording(true);
