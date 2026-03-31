@@ -147,6 +147,13 @@ fn get_env_api_keys() -> std::collections::HashMap<String, String> {
     keys
 }
 
+#[tauri::command]
+fn open_sound_settings() {
+    let _ = std::process::Command::new("control")
+        .arg("mmsys.cpl,,1")
+        .spawn();
+}
+
 // ── App entry ───────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -162,6 +169,7 @@ pub fn run() {
             check_claude_sdk,
             get_env_anthropic_key,
             get_env_api_keys,
+            open_sound_settings,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

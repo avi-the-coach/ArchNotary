@@ -119,3 +119,26 @@
   color: #22c55e;
   background: #22c55e0e;
 }
+
+.audio-hint-text {
+  margin-bottom: 0.7rem;
+  line-height: 1.6;
+}
+
+.audio-open-settings {
+  display: block;
+  width: 100%;
+  padding: 0.5rem 0.8rem;
+  background: var(--bg-dark2, #1a1a2e);
+  border: 1px solid var(--border-dark);
+  border-radius: 6px;
+  color: var(--text-primary);
+  font-size: 0.82rem;
+  cursor: pointer;
+  text-align: center;
+  transition: background 0.15s, border-color 0.15s;
+}
+.audio-open-settings:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-dim);
+}

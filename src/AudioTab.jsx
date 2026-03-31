@@ -1,11 +1,8 @@
 import { useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { useAudioDevices } from "./useAudioDevices";
 import "./AudioTab.css";
 
-/**
- * AudioTab — device picker for audio input.
- * Detects Stereo Mix and highlights it.
- */
 export function AudioTab({ selectedDeviceId, onSelect }) {
   const { devices, loading, error, refresh } = useAudioDevices();
 
@@ -17,6 +14,14 @@ export function AudioTab({ selectedDeviceId, onSelect }) {
     /stereo mix|what u hear|loopback/i.test(d.label)
   );
 
+  const openSoundSettings = async () => {
+    try {
+      await invoke("open_sound_settings");
+    } catch (e) {
+      console.warn("Could not open sound settings:", e);
+    }
+  };
+
   return (
     <div className="audio-tab">
       <div className="audio-tab-header">
@@ -26,7 +31,7 @@ export function AudioTab({ selectedDeviceId, onSelect }) {
         </button>
       </div>
 
-      {loading && <div className="audio-status">Scanning devices…</div>}
+      {loading && <div className="audio-status">סורק מכשירים…</div>}
       {error && <div className="audio-status audio-error">{error}</div>}
 
       <div className="audio-devices">
@@ -36,7 +41,7 @@ export function AudioTab({ selectedDeviceId, onSelect }) {
           onClick={() => onSelect(null)}
         >
           <span className="audio-device-icon">🎤</span>
-          <span className="audio-device-name">Default Microphone</span>
+          <span className="audio-device-name">מיקרופון ברירת מחדל</span>
           {!selectedDeviceId && <span className="audio-check">✓</span>}
         </div>
 
@@ -68,20 +73,27 @@ export function AudioTab({ selectedDeviceId, onSelect }) {
         })}
 
         {!loading && devices.length === 0 && (
-          <div className="audio-status">No audio input devices found.</div>
+          <div className="audio-status">לא נמצאו מכשירי קלט.</div>
         )}
       </div>
 
-      {/* Hint */}
+      {/* Hint + action */}
       {hasStereoMix ? (
         <div className="audio-hint stereo-available">
-          ✅ Stereo Mix detected — select it to capture Zoom + microphone
+          ✅ Stereo Mix זמין — בחר אותו כדי לקלוט גם את קול Zoom
         </div>
       ) : (
         <div className="audio-hint">
-          💡 To capture Zoom audio: Windows Sound Settings → Recording →
-          right-click empty area → Show Disabled Devices → enable{" "}
-          <strong>Stereo Mix</strong>, then refresh here.
+          <div className="audio-hint-text">
+            💡 כדי לקלוט שמע מ-Zoom: יש להפעיל את <strong>Stereo Mix</strong> בהגדרות הקול של Windows.
+            <br />
+            לחץ על הכפתור → ימין קליק על אזור ריק → <em>Show Disabled Devices</em> → ימין קליק על <strong>Stereo Mix</strong> → <em>Enable</em>
+            <br />
+            אחר כך לחץ ↻ כאן.
+          </div>
+          <button className="audio-open-settings" onClick={openSoundSettings}>
+            🔧 פתח הגדרות קול של Windows
+          </button>
         </div>
       )}
     </div>
