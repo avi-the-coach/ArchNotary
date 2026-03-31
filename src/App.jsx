@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import { Header } from "./Header";
 import { Resizer } from "./Resizer";
 import { SessionsBrowser } from "./SessionsBrowser";
@@ -41,6 +42,7 @@ function App() {
   const [audioDeviceId, setAudioDeviceId] = useState(
     () => localStorage.getItem("archnotary_audio_device_id") || null
   );
+  const originalAudioDeviceRef = useRef(null);
   const panelsRef = useRef(null);
   const interimIdRef = useRef(null); // id of current interim entry
 
@@ -50,6 +52,9 @@ function App() {
   // Init storage + config on mount, then auto-check all providers
   useEffect(() => {
     init().then(async () => {
+      invoke("get_default_recording_device").then(id => {
+        if (id) originalAudioDeviceRef.current = id;
+      }).catch(() => {});
       const loadedProviders = await loadConfig();
       checkAllProviders(loadedProviders); // fire-and-forget: update dots async
       const loaded = await loadAllSessions();
@@ -151,15 +156,26 @@ function App() {
   }, []);
 
   const { start: startStt, stop: stopStt, isSupported: sttSupported } =
-    useSpeechRecognition({ onInterim, onFinal, onError: onSttError, deviceId: audioDeviceId });
+    useSpeechRecognition({ onInterim, onFinal, onError: onSttError });
 
   // ── Voice toggle ──────────────────────────────────────────
-  const handleVoiceToggle = useCallback(() => {
-    setIsRecording((prev) => {
-      if (prev) { stopStt(); return false; }
-      startStt(); return true;
-    });
-  }, [startStt, stopStt]);
+  const handleVoiceToggle = useCallback(async () => {
+    if (isRecording) {
+      stopStt();
+      setIsRecording(false);
+      // Restore original Windows default recording device
+      if (audioDeviceId && originalAudioDeviceRef.current) {
+        invoke("set_default_recording_device", { deviceId: originalAudioDeviceRef.current }).catch(() => {});
+      }
+    } else {
+      // If custom device selected, set as Windows default so Web Speech API uses it
+      if (audioDeviceId) {
+        await invoke("set_default_recording_device", { deviceId: audioDeviceId }).catch(() => {});
+      }
+      startStt();
+      setIsRecording(true);
+    }
+  }, [isRecording, audioDeviceId, startStt, stopStt]);
 
   // Stop STT when leaving session view
   useEffect(() => {

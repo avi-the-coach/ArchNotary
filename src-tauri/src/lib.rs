@@ -154,6 +154,52 @@ fn open_sound_settings() {
         .spawn();
 }
 
+#[tauri::command]
+fn get_default_recording_device() -> String {
+    let script = r#"Add-Type -TypeDefinition @"
+using System;using System.Runtime.InteropServices;
+[Guid("A95664D2-9614-4F35-A746-DE8DB63617E6"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IMMDeviceEnumerator{void d0();[PreserveSig]int GetDefaultAudioEndpoint(int f,int r,out IMMDevice d);}
+[Guid("D666063F-1587-4E43-81F1-B948E807363F"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IMMDevice{void d0();void d1();[PreserveSig]int GetId([MarshalAs(UnmanagedType.LPWStr)]out string id);}
+[Guid("BCDE0395-E52F-467C-8E3D-C4579291692E"),ClassInterface(ClassInterfaceType.None),ComImport]
+public class MMDevEnum{}
+"@ -EA SilentlyContinue
+$e=(New-Object MMDevEnum)-as[IMMDeviceEnumerator];$d=$null;$e.GetDefaultAudioEndpoint(1,1,[ref]$d)|Out-Null;$id=$null;$d.GetId([ref]$id)|Out-Null;$id"#;
+
+    let out = std::process::Command::new("powershell")
+        .args(["-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", script])
+        .output()
+        .unwrap_or_else(|_| std::process::Output {
+            status: std::process::ExitStatus::default(),
+            stdout: vec![],
+            stderr: vec![],
+        });
+    String::from_utf8_lossy(&out.stdout).trim().to_string()
+}
+
+#[tauri::command]
+fn set_default_recording_device(device_id: String) -> bool {
+    if device_id.is_empty() {
+        return false;
+    }
+    let script = r#"Add-Type -TypeDefinition @"
+using System.Runtime.InteropServices;
+[Guid("f8679f50-850a-41cf-9c72-430f290290c8"),InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
+public interface IPolicyConfig{void d0();void d1();void d2();void d3();void d4();void d5();void d6();void d7();void d8();void d9();[PreserveSig]int SetDefaultEndpoint([MarshalAs(UnmanagedType.LPWStr)]string id,int r);}
+[Guid("870af99c-171d-4f9e-af0d-e63df40c2bc9"),ClassInterface(ClassInterfaceType.None),ComImport]
+public class PC{}
+"@ -EA SilentlyContinue
+$p=(New-Object PC)-as[IPolicyConfig];$p.SetDefaultEndpoint($env:AUD_DEV,0)|Out-Null;$p.SetDefaultEndpoint($env:AUD_DEV,1)|Out-Null;$p.SetDefaultEndpoint($env:AUD_DEV,2)|Out-Null"#;
+
+    std::process::Command::new("powershell")
+        .env("AUD_DEV", &device_id)
+        .args(["-WindowStyle", "Hidden", "-ExecutionPolicy", "Bypass", "-Command", script])
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 // ── App entry ───────────────────────────────────────────────────
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -170,6 +216,8 @@ pub fn run() {
             get_env_anthropic_key,
             get_env_api_keys,
             open_sound_settings,
+            get_default_recording_device,
+            set_default_recording_device,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
