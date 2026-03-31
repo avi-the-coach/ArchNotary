@@ -73,6 +73,15 @@ function App() {
   expertAgentRef.current = expertAgent;
 
   // ── Stenographer ──────────────────────────────────────────
+  // Exposed for Stenographer (Story 6.1) to apply patches
+  const applyDocPatch = useCallback((patch) => {
+    setDocState((prev) => {
+      const next = applyPatch(prev, patch);
+      saveDocument(next);
+      return next;
+    });
+  }, [saveDocument]);
+
   const stenoAgent = config.agents?.find((a) => a.id === "stenographer");
   const stenoProvider = config.providers?.find((p) => p.id === stenoAgent?.providerId);
 
@@ -181,15 +190,6 @@ function App() {
     setDocState(document ?? { sections: {}, order: [] });
     setView(VIEW_SESSION);
   }, [loadSession]);
-
-  // Exposed for Stenographer (Story 6.1) to apply patches
-  const applyDocPatch = useCallback((patch) => {
-    setDocState((prev) => {
-      const next = applyPatch(prev, patch);
-      saveDocument(next);
-      return next;
-    });
-  }, [saveDocument]);
 
   const handleDeleteSession = useCallback((id) => {
     setSessions((prev) => prev.filter((s) => s.id !== id));
