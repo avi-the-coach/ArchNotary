@@ -12,7 +12,7 @@ import { useRef, useCallback, useEffect } from "react";
  * @param {function} opts.onFinal    — called with final transcript string
  * @param {function} opts.onError    — called with error message string
  */
-export function useSpeechRecognition({ onInterim, onFinal, onError } = {}) {
+export function useSpeechRecognition({ onInterim, onFinal, onError, onStart } = {}) {
   const recognitionRef = useRef(null);
   const activeRef = useRef(false);
 
@@ -33,6 +33,10 @@ export function useSpeechRecognition({ onInterim, onFinal, onError } = {}) {
     recognition.continuous = true;
     recognition.interimResults = true;
     recognition.lang = "he-IL";
+
+    recognition.onstart = () => {
+      onStart?.();
+    };
 
     recognition.onresult = (event) => {
       let interim = "";
@@ -61,7 +65,7 @@ export function useSpeechRecognition({ onInterim, onFinal, onError } = {}) {
     recognitionRef.current = recognition;
     activeRef.current = true;
     recognition.start();
-  }, [isSupported, onFinal, onInterim, onError]);
+  }, [isSupported, onFinal, onInterim, onError, onStart]);
 
   const stop = useCallback(() => {
     activeRef.current = false;

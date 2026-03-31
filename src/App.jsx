@@ -151,12 +151,25 @@ function App() {
     appendFeedEntry(entry); // persist
   }, [appendFeedEntry]);
 
-  const onSttError = useCallback((err) => {
-    console.warn("[ArchNotary] STT error:", err);
+  const addSystemLine = useCallback((text) => {
+    setFeedEntries((prev) => [
+      ...prev,
+      { id: newId(), isSystem: true, text },
+    ]);
   }, []);
 
+  const onSttError = useCallback((err) => {
+    console.warn("[ArchNotary] STT error:", err);
+    addSystemLine(`🔴 שגיאת STT: ${err}`);
+    setIsRecording(false);
+  }, [addSystemLine]);
+
+  const onSttStart = useCallback(() => {
+    addSystemLine("✅ Web Speech API פעיל — מקשיב...");
+  }, [addSystemLine]);
+
   const { start: startStt, stop: stopStt, isSupported: sttSupported } =
-    useSpeechRecognition({ onInterim, onFinal, onError: onSttError });
+    useSpeechRecognition({ onInterim, onFinal, onError: onSttError, onStart: onSttStart });
 
   // ── Voice toggle ──────────────────────────────────────────
   const handleVoiceToggle = useCallback(async () => {
@@ -165,17 +178,21 @@ function App() {
       setIsRecording(false);
       // Restore original Windows default recording device
       if (audioDeviceId && originalAudioDeviceRef.current) {
-        invoke("set_default_recording_device", { deviceId: originalAudioDeviceRef.current }).catch(() => {});
+        invoke("set_default_recording_device", { deviceId: originalAudioDeviceRef.current })
+          .then(() => addSystemLine("🎤 מכשיר השמע שוחזר"))
+          .catch(() => addSystemLine("⚠️ לא הצלחנו לשחזר מכשיר שמע"));
       }
     } else {
       // If custom device selected, set as Windows default so Web Speech API uses it
       if (audioDeviceId) {
-        await invoke("set_default_recording_device", { deviceId: audioDeviceId }).catch(() => {});
+        addSystemLine("🔄 מחליף מכשיר שמע...");
+        const ok = await invoke("set_default_recording_device", { deviceId: audioDeviceId }).catch(() => false);
+        addSystemLine(ok ? "✅ מכשיר שמע הוחלף" : "⚠️ החלפת מכשיר נכשלה — משתמש בברירת מחדל");
       }
       startStt();
       setIsRecording(true);
     }
-  }, [isRecording, audioDeviceId, startStt, stopStt]);
+  }, [isRecording, audioDeviceId, startStt, stopStt, addSystemLine]);
 
   // Stop STT when leaving session view
   useEffect(() => {
