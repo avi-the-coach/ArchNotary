@@ -1,0 +1,121 @@
+.audio-tab {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.audio-tab-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.2rem;
+}
+
+.audio-tab-title {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.audio-refresh {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.2rem 0.4rem;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.audio-refresh:hover {
+  color: var(--text-primary);
+}
+
+.audio-devices {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.audio-device {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-dark);
+  cursor: pointer;
+  background: var(--bg-dark1);
+  transition: background 0.15s, border-color 0.15s;
+}
+.audio-device:hover {
+  background: var(--bg-hover);
+  border-color: var(--accent-dim);
+}
+.audio-device.selected {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.audio-device.stereo-mix {
+  border-color: #22c55e44;
+}
+.audio-device.stereo-mix.selected {
+  border-color: #22c55e;
+  background: #22c55e18;
+}
+
+.audio-device-icon {
+  font-size: 1rem;
+}
+
+.audio-device-name {
+  flex: 1;
+  font-size: 0.84rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.stereo-badge {
+  font-size: 0.68rem;
+  background: #22c55e22;
+  color: #22c55e;
+  border: 1px solid #22c55e55;
+  padding: 0.1rem 0.4rem;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.audio-check {
+  color: var(--accent);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.audio-status {
+  font-size: 0.84rem;
+  color: var(--text-secondary);
+  padding: 0.4rem 0.2rem;
+}
+.audio-error {
+  color: #f87171;
+}
+
+.audio-hint {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  background: var(--bg-dark1);
+  border: 1px solid var(--border-dark);
+  border-radius: 8px;
+  padding: 0.65rem 0.85rem;
+  line-height: 1.55;
+  margin-top: 0.2rem;
+}
+.audio-hint.stereo-available {
+  border-color: #22c55e44;
+  color: #22c55e;
+  background: #22c55e0e;
+}

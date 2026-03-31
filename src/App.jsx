@@ -38,6 +38,9 @@ function App() {
   const [docState, setDocState] = useState({ sections: {}, order: [] });
   const [isRtl, setIsRtl] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
+  const [audioDeviceId, setAudioDeviceId] = useState(
+    () => localStorage.getItem("archnotary_audio_device_id") || null
+  );
   const panelsRef = useRef(null);
   const interimIdRef = useRef(null); // id of current interim entry
 
@@ -148,7 +151,7 @@ function App() {
   }, []);
 
   const { start: startStt, stop: stopStt, isSupported: sttSupported } =
-    useSpeechRecognition({ onInterim, onFinal, onError: onSttError });
+    useSpeechRecognition({ onInterim, onFinal, onError: onSttError, deviceId: audioDeviceId });
 
   // ── Voice toggle ──────────────────────────────────────────
   const handleVoiceToggle = useCallback(() => {
@@ -225,7 +228,7 @@ function App() {
           onDelete={handleDeleteSession}
         />
         {showSettings && (
-          <AgentSettingsPanel onClose={() => setShowSettings(false)} />
+          <AgentSettingsPanel onClose={() => setShowSettings(false)} onDeviceSelect={setAudioDeviceId} />
         )}
       </div>
     );
@@ -270,7 +273,7 @@ function App() {
       </div>
 
       {showSettings && (
-        <AgentSettingsPanel onClose={() => setShowSettings(false)} />
+        <AgentSettingsPanel onClose={() => setShowSettings(false)} onDeviceSelect={setAudioDeviceId} />
       )}
     </div>
   );
